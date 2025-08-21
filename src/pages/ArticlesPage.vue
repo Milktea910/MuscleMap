@@ -5,8 +5,20 @@
       <p class="section-description text-center q-mb-lg">
         您可以找到各種健身相關的文章，涵蓋不同的健身主題和技巧。無論您是初學者還是有經驗的健身愛好者，都能找到有價值的資訊。
       </p>
-      <div class="row q-col-gutter-lg q-mt-sm">
-        <div v-for="(article, index) in articles" :key="index" class="col-12 col-md-6 col-lg-4">
+
+      <!-- 載入中狀態 -->
+      <div v-if="loading" class="text-center q-my-xl">
+        <q-spinner-hourglass color="primary" size="3em" />
+        <div class="q-mt-md text-grey-6">載入文章中...</div>
+      </div>
+
+      <!-- 文章列表 -->
+      <div v-else class="row q-col-gutter-lg q-mt-sm">
+        <div
+          v-for="(article, index) in articles"
+          :key="article._id || index"
+          class="col-12 col-md-6 col-lg-4"
+        >
           <q-card class="my-card article-card" @click="openArticle(article)">
             <div class="card-image-container">
               <img
@@ -47,74 +59,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { onMounted, computed } from 'vue'
 import { useQuasar } from 'quasar'
+import { useArticleStore } from '../stores/article.js'
 
 const $q = useQuasar()
+const articleStore = useArticleStore()
 
-// 精選文章（儲存在 localStorage 中）
-const articles = ref([
-  {
-    title: '健身入門指南',
-    description: '從零開始的健身之路，建立正確的健身觀念與基本動作',
-    author: 'MuscleMap 編輯部',
-    image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
-    link: 'https://example.com/fitness-guide',
-    buttonText: '開始學習',
-  },
-  {
-    title: '營養補充攻略',
-    description: '了解蛋白質、碳水化合物與脂肪的最佳比例',
-    author: 'MuscleMap 編輯部',
-    image: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=400&h=300&fit=crop',
-    link: 'https://example.com/nutrition-guide',
-    buttonText: '立即了解',
-  },
-  {
-    title: '重量訓練指南',
-    description: '掌握正確的訓練姿勢與動作技巧，避免運動傷害',
-    author: 'MuscleMap 編輯部',
-    image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop',
-    link: 'https://example.com/weight-training',
-    buttonText: '深入了解',
-  },
-  {
-    title: '有氧運動指南',
-    description: '探索適合你的有氧運動，提升心肺功能與耐力',
-    author: 'MuscleMap 編輯部',
-    image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=300&fit=crop',
-    link: 'https://example.com/cardio-guide',
-    buttonText: '開始運動',
-  },
-  {
-    title: '恢復與休息',
-    description: '學習正確的恢復技巧，讓你的訓練事半功倍',
-    author: 'MuscleMap 編輯部',
-    image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&h=300&fit=crop',
-    link: 'https://example.com/recovery-guide',
-    buttonText: '了解更多',
-  },
-  {
-    title: '運動心理學',
-    description: '建立正確的運動心態，維持長期的健身動力',
-    author: 'MuscleMap 編輯部',
-    image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=300&fit=crop',
-    link: 'https://example.com/sports-psychology',
-    buttonText: '心理建設',
-  },
-])
-
-// 載入精選文章資料
-const loadArticles = () => {
-  const saved = localStorage.getItem('homepage-articles')
-  if (saved) {
-    try {
-      articles.value = JSON.parse(saved)
-    } catch (error) {
-      console.error('載入文章資料失敗:', error)
-    }
-  }
-}
+// 使用 computed 來獲取文章資料
+const articles = computed(() => articleStore.featuredArticles)
+const loading = computed(() => articleStore.loading)
+const error = computed(() => articleStore.error)
 
 // 開啟文章
 const openArticle = (article) => {
@@ -132,8 +87,30 @@ const openArticle = (article) => {
 }
 
 // 頁面載入時載入文章
-onMounted(() => {
-  loadArticles()
+onMounted(async () => {
+  try {
+    await articleStore.loadFeaturedArticles()
+
+    // 如果有錯誤，顯示通知
+    if (error.value) {
+      $q.notify({
+        color: 'orange-5',
+        textColor: 'white',
+        icon: 'warning',
+        message: '載入文章時發生問題，顯示本地備份資料',
+        timeout: 3000,
+      })
+    }
+  } catch (err) {
+    console.error('載入文章失敗:', err)
+    $q.notify({
+      color: 'negative',
+      textColor: 'white',
+      icon: 'error',
+      message: '載入文章失敗',
+      timeout: 3000,
+    })
+  }
 })
 </script>
 

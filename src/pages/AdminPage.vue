@@ -1,6 +1,13 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="container fade-in-up">
+    <!-- 權限檢查載入中 -->
+    <div v-if="!hasPermission" class="text-center q-pa-xl">
+      <q-spinner-hourglass color="primary" size="3em" />
+      <div class="q-mt-md text-grey-6">檢查權限中...</div>
+    </div>
+
+    <!-- 有權限時顯示管理內容 -->
+    <div v-else class="container fade-in-up">
       <!-- 頁面標題 -->
       <div class="text-center">
         <h1 class="section text-h4 q-mt-lg">管理頁面</h1>
@@ -28,17 +35,32 @@
       <q-tab-panels v-model="currentTab" animated>
         <!-- 首頁內容管理 -->
         <q-tab-panel name="homepage">
-          <div class="text-h6 q-mb-md">精選文章管理</div>
+          <div class="row justify-between items-center q-mb-md">
+            <div class="text-h6">精選文章管理</div>
+            <q-btn color="primary" icon="add" label="新增文章" @click="addHomepageCard" />
+          </div>
 
           <div class="row q-col-gutter-lg">
             <div
               v-for="(card, index) in homepageCards"
-              :key="index"
+              :key="card._id || index"
               class="col-12 col-md-6 col-lg-4"
             >
               <q-card class="q-pa-md">
                 <q-card-section>
-                  <div class="text-h6 q-mb-sm">卡片 {{ index + 1 }}</div>
+                  <div class="row justify-between items-center q-mb-sm">
+                    <div class="text-h6">
+                      {{ card._id ? '編輯文章' : '新文章' }} {{ index + 1 }}
+                    </div>
+                    <q-btn
+                      flat
+                      round
+                      color="negative"
+                      icon="delete"
+                      size="sm"
+                      @click="deleteHomepageCard(index)"
+                    />
+                  </div>
 
                   <q-input v-model="card.title" label="標題" outlined class="q-mb-sm" />
 
@@ -59,6 +81,27 @@
 
                   <q-input v-model="card.buttonText" label="按鈕文字" outlined class="q-mb-sm" />
 
+                  <!-- 進階選項 -->
+                  <q-expansion-item label="進階選項" class="q-mb-sm">
+                    <div class="q-pt-md">
+                      <div class="row q-col-gutter-sm">
+                        <div class="col-6">
+                          <q-toggle v-model="card.isFeatured" label="設為精選" />
+                        </div>
+                        <div class="col-6">
+                          <q-toggle v-model="card.isActive" label="啟用顯示" />
+                        </div>
+                      </div>
+                      <q-input
+                        v-model.number="card.order"
+                        label="排序順序"
+                        type="number"
+                        outlined
+                        class="q-mt-sm"
+                      />
+                    </div>
+                  </q-expansion-item>
+
                   <!-- 圖片預覽 -->
                   <div class="text-center q-mb-sm">
                     <img
@@ -72,7 +115,7 @@
                 <q-card-actions align="center">
                   <q-btn
                     color="primary"
-                    label="儲存"
+                    :label="card._id ? '更新' : '建立'"
                     @click="saveHomepageCard(index)"
                     :loading="savingCard === index"
                   />
@@ -483,9 +526,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useQuasar, QDialog } from 'quasar'
 import { useUserStore } from 'src/stores/user'
+import { useArticleStore } from 'src/stores/article'
 import { useRouter } from 'vue-router'
 import routineService from 'src/services/routine'
 import wikiService from 'src/services/wiki'
@@ -493,28 +537,48 @@ import { validMuscleNames } from 'src/config/muscleMapping'
 
 const $q = useQuasar()
 const user = useUserStore()
+const articleStore = useArticleStore()
 const router = useRouter()
-
-if (!user.isLoggedIn) {
-  $q.notify({
-    color: 'red-5',
-    textColor: 'white',
-    icon: 'warning',
-    message: '請先登入',
-  })
-  router.push('/login')
-} else if (!user.isAdmin) {
-  $q.notify({
-    color: 'red-5',
-    textColor: 'white',
-    icon: 'warning',
-    message: '您沒有權限訪問此頁面',
-  })
-  router.push('/')
-}
 
 // 響應式數據
 const currentTab = ref('homepage')
+const hasPermission = ref(false)
+
+// 權限檢查函數
+const checkPermissions = () => {
+  if (!user.isLoggedIn) {
+    hasPermission.value = false
+    $q.notify({
+      color: 'red-5',
+      textColor: 'white',
+      icon: 'warning',
+      message: '請先登入',
+    })
+    router.push('/login')
+    return false
+  } else if (!user.isAdmin) {
+    hasPermission.value = false
+    $q.notify({
+      color: 'red-5',
+      textColor: 'white',
+      icon: 'warning',
+      message: '您沒有權限訪問此頁面',
+    })
+    router.push('/')
+    return false
+  }
+  hasPermission.value = true
+  return true
+}
+
+// 監聽用戶登入狀態變化
+watch(
+  () => user.isLoggedIn,
+  () => {
+    checkPermissions()
+  },
+  { immediate: true },
+)
 
 // 首頁卡片管理
 const homepageCards = ref([
@@ -658,10 +722,25 @@ const difficultyOptions = ['簡單', '普通', '困難']
 const muscleOptions = validMuscleNames
 
 // 載入首頁卡片
-const loadHomepageCards = () => {
-  const stored = localStorage.getItem('homepage-articles')
-  if (stored) {
-    homepageCards.value = JSON.parse(stored)
+const loadHomepageCards = async () => {
+  try {
+    // 載入所有文章（包括未啟用的），管理員需要看到所有文章
+    await articleStore.loadAllArticles({
+      limit: 100, // 載入更多文章
+      featured: undefined, // 不限制是否精選
+      active: undefined, // 不限制是否啟用
+    })
+    homepageCards.value = articleStore.articles
+  } catch (err) {
+    // 如果 API 失敗，從 localStorage 載入
+    console.log('從 API 載入失敗，嘗試載入本地資料', err)
+    const stored = localStorage.getItem('homepage-articles')
+    if (stored) {
+      homepageCards.value = JSON.parse(stored)
+    } else {
+      // 使用預設資料
+      homepageCards.value = articleStore.getFallbackArticles()
+    }
   }
 }
 
@@ -669,24 +748,119 @@ const loadHomepageCards = () => {
 const saveHomepageCard = async (index) => {
   savingCard.value = index
   try {
+    const card = homepageCards.value[index]
+
+    // 如果卡片有 _id，表示是更新；否則是新增
+    if (card._id) {
+      await articleStore.updateArticle(card._id, card)
+      $q.notify({
+        color: 'positive',
+        textColor: 'white',
+        icon: 'check',
+        message: `文章「${card.title}」更新成功`,
+      })
+    } else {
+      const createdArticle = await articleStore.createArticle(card)
+      // 更新本地資料的 _id
+      homepageCards.value[index]._id = createdArticle._id
+      $q.notify({
+        color: 'positive',
+        textColor: 'white',
+        icon: 'check',
+        message: `文章「${card.title}」建立成功`,
+      })
+    }
+
+    // 同時儲存到 localStorage 作為備份
     localStorage.setItem('homepage-articles', JSON.stringify(homepageCards.value))
-    $q.notify({
-      color: 'positive',
-      textColor: 'white',
-      icon: 'check',
-      message: `卡片 ${index + 1} 儲存成功`,
-    })
+
+    // 重新載入文章列表
+    await loadHomepageCards()
   } catch (error) {
     console.error('儲存失敗:', error)
     $q.notify({
       color: 'red-5',
       textColor: 'white',
       icon: 'warning',
-      message: '儲存失敗',
+      message: `儲存失敗: ${error.message || '未知錯誤'}`,
     })
   } finally {
     savingCard.value = null
   }
+}
+
+// 刪除文章
+const deleteHomepageCard = async (index) => {
+  const card = homepageCards.value[index]
+
+  // 確認對話框
+  $q.dialog({
+    title: '確認刪除',
+    message: `確定要刪除文章「${card.title}」嗎？`,
+    persistent: true,
+    ok: {
+      push: true,
+      label: '確認刪除',
+      color: 'negative',
+    },
+    cancel: {
+      push: true,
+      label: '取消',
+      color: 'grey',
+    },
+  })
+    .onOk(async () => {
+      // 用戶確認刪除
+      try {
+        if (card._id) {
+          await articleStore.deleteArticle(card._id)
+        }
+
+        // 從本地陣列中移除
+        homepageCards.value.splice(index, 1)
+
+        // 更新 localStorage
+        localStorage.setItem('homepage-articles', JSON.stringify(homepageCards.value))
+
+        // 重新載入文章列表，確保與伺服器同步
+        await loadHomepageCards()
+
+        $q.notify({
+          color: 'positive',
+          textColor: 'white',
+          icon: 'check',
+          message: `文章「${card.title}」刪除成功`,
+        })
+      } catch (error) {
+        console.error('刪除失敗:', error)
+        $q.notify({
+          color: 'red-5',
+          textColor: 'white',
+          icon: 'warning',
+          message: `刪除失敗: ${error.message || '未知錯誤'}`,
+        })
+      }
+    })
+    .onCancel(() => {
+      // 用戶取消，不做任何事
+      console.log('用戶取消了刪除操作')
+    })
+}
+
+// 新增文章
+const addHomepageCard = () => {
+  const newCard = {
+    title: '新文章標題',
+    description: '請輸入文章描述',
+    author: 'MuscleMap 編輯部',
+    image: '',
+    link: '',
+    buttonText: '閱讀更多',
+    isFeatured: true,
+    isActive: true,
+    order: homepageCards.value.length,
+  }
+  homepageCards.value.push(newCard)
 }
 
 const loadAllRoutines = async () => {
@@ -952,9 +1126,12 @@ const getDayName = (day) => {
 
 // 生命週期
 onMounted(async () => {
-  loadHomepageCards()
-  await loadAllRoutines()
-  await loadAllExercises()
+  // 只有在權限檢查通過後才載入數據
+  if (checkPermissions()) {
+    loadHomepageCards()
+    await loadAllRoutines()
+    await loadAllExercises()
+  }
 })
 </script>
 
