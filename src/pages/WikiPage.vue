@@ -124,6 +124,9 @@
                   style="max-height: 350px"
                   autoplay
                   loop
+                  muted
+                  playsinline
+                  webkit-playsinline
                 >
                   您的瀏覽器不支援影片播放
                 </video>
