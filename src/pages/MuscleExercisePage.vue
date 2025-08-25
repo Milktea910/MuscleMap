@@ -36,6 +36,7 @@
                         preload="metadata"
                         loop
                         muted
+                        autoPlay
                         playsinline
                         webkit-playsinline
                         @loadeddata="handleVideoLoaded"
