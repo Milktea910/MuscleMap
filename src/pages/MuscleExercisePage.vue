@@ -34,7 +34,6 @@
                         :src="getVideoUrl(exercise.video)"
                         class="exercise-video"
                         preload="metadata"
-                        autoplay
                         loop
                         muted
                         playsinline
