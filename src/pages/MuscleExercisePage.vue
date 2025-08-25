@@ -33,15 +33,22 @@
                         v-if="exercise.video"
                         :src="getVideoUrl(exercise.video)"
                         class="exercise-video"
-                        preload="metadata"
+                        preload="auto"
                         loop
                         muted
+                        autoplay
                         playsinline
                         webkit-playsinline
+                        crossorigin="anonymous"
+                        :ref="(el) => setVideoRef(el, exercise._id)"
                         @loadeddata="handleVideoLoaded"
                         @loadstart="handleVideoLoadStart"
                         @error="handleVideoError"
                         @canplay="handleVideoCanPlay"
+                        @loadedmetadata="handleVideoLoadedMetadata"
+                        @abort="handleVideoAbort"
+                        @stalled="handleVideoStalled"
+                        @suspend="handleVideoSuspend"
                       >
                         您的瀏覽器不支援影片播放
                       </video>
@@ -54,6 +61,19 @@
                         Video: {{ exercise.video }}<br />
                         URL: {{ getVideoUrl(exercise.video) }}<br />
                         Status: {{ videoStatus[getVideoUrl(exercise.video)] || 'loading...' }}
+                      </div>
+
+                      <!-- 如果影片載入失敗，顯示替代內容 -->
+                      <div
+                        v-if="
+                          videoStatus[getVideoUrl(exercise.video)] === '載入錯誤' ||
+                          videoStatus[getVideoUrl(exercise.video)] === '載入停滯'
+                        "
+                        class="video-fallback text-center q-pa-md"
+                      >
+                        <q-icon name="videocam_off" size="2rem" color="grey-5" />
+                        <div class="text-caption text-grey-6">影片載入失敗</div>
+                        <q-btn size="sm" flat @click="retryVideo(exercise.video)">重試</q-btn>
                       </div>
                     </div>
                   </div>
@@ -325,7 +345,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useUserStore } from 'src/stores/user'
@@ -351,6 +371,8 @@ const gender = ref('男生')
 const showDetail = ref(false)
 const selectedExercise = ref(null)
 const videoStatus = ref({})
+const videoRefs = ref(new Map())
+const observer = ref(null)
 
 // 定義背部肌群（需要顯示背面視圖的肌群）
 const backMuscles = [
@@ -373,18 +395,72 @@ const initializeGender = () => {
   }
 }
 
+// 設置 video ref
+const setVideoRef = (el, exerciseId) => {
+  if (el) {
+    videoRefs.value.set(exerciseId, el)
+    if (observer.value) {
+      observer.value.observe(el)
+    }
+  }
+}
+
+// 設置 Intersection Observer（針對手機性能優化）
+const setupVideoObserver = () => {
+  observer.value = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        const video = entry.target
+        if (entry.isIntersecting && entry.intersectionRatio > 0.3) {
+          // 影片進入視窗時嘗試播放
+          video.play().catch(() => {
+            console.log('自動播放被阻止，這在手機上是正常的')
+          })
+        } else {
+          // 影片離開視窗時暫停（節省資源）
+          video.pause()
+        }
+      })
+    },
+    {
+      threshold: 0.3, // 當 30% 的影片可見時觸發
+      rootMargin: '50px', // 提前 50px 開始載入
+    },
+  )
+}
+
 // 獲取影片 URL
 const getVideoUrl = (videoPath) => {
-  if (!videoPath) return ''
+  if (!videoPath) {
+    console.log('影片路徑為空:', videoPath)
+    return ''
+  }
 
   // 如果已經是完整的 URL，直接返回
   if (videoPath.startsWith('http://') || videoPath.startsWith('https://')) {
+    console.log('使用完整 URL:', videoPath)
     return videoPath
   }
 
   // 如果是相對路徑，拼接基礎 URL
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
-  return `${baseUrl}/${videoPath.replace(/^\//, '')}`
+  const fullUrl = `${baseUrl}/${videoPath.replace(/^\//, '')}`
+  console.log('拼接 URL:', { videoPath, baseUrl, fullUrl })
+
+  // 在這裡我們可以嘗試用 fetch 來測試 URL 是否可用
+  testVideoUrl(fullUrl)
+
+  return fullUrl
+}
+
+// 測試影片 URL 是否可用
+const testVideoUrl = async (url) => {
+  try {
+    const response = await fetch(url, { method: 'HEAD' })
+    console.log('影片 URL 測試結果:', { url, status: response.status, ok: response.ok })
+  } catch (error) {
+    console.error('影片 URL 測試失敗:', { url, error: error.message })
+  }
 }
 
 // 顯示動作詳細資訊
@@ -653,9 +729,51 @@ const handleVideoCanPlay = (event) => {
   console.log('影片可以播放:', src)
 }
 
+const handleVideoLoadedMetadata = (event) => {
+  const src = event.target.src
+  videoStatus.value[src] = '元數據載入完成'
+  console.log('影片元數據載入完成:', src)
+
+  // 強制嘗試播放（針對手機 Safari）
+  setTimeout(() => {
+    event.target.play().catch((error) => {
+      console.log('自動播放失敗，這在手機上是正常的:', error.message)
+    })
+  }, 100)
+}
+
+const handleVideoAbort = (event) => {
+  const src = event.target.src
+  videoStatus.value[src] = '載入中止'
+  console.log('影片載入中止:', src)
+}
+
+const handleVideoStalled = (event) => {
+  const src = event.target.src
+  videoStatus.value[src] = '載入停滯'
+  console.log('影片載入停滯:', src)
+}
+
+const handleVideoSuspend = (event) => {
+  const src = event.target.src
+  videoStatus.value[src] = '載入暫停'
+  console.log('影片載入暫停:', src)
+}
+
 onMounted(() => {
   initializeGender()
-  loadExercises()
+  loadExercises().then(() => {
+    // 等待動作載入完成後設置 observer
+    setTimeout(() => {
+      setupVideoObserver()
+    }, 500)
+  })
+})
+
+onUnmounted(() => {
+  if (observer.value) {
+    observer.value.disconnect()
+  }
 })
 
 // 監聽路由變化，當肌肉、器材或動作ID參數改變時重新載入動作
