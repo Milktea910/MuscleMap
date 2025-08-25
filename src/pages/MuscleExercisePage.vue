@@ -38,6 +38,7 @@
                         muted
                         playsinline
                         webkit-playsinline
+                        @loadeddata="handleVideoLoaded"
                       >
                         您的瀏覽器不支援影片播放
                       </video>
@@ -607,6 +608,16 @@ const handleMuscleClick = (target) => {
     path: '/muscle-exercises',
     query: query,
   })
+}
+
+// 處理影片載入完成後播放
+const handleVideoLoaded = (event) => {
+  // 延遲一點時間再播放，避免同時播放多個影片
+  setTimeout(() => {
+    event.target.play().catch(() => {
+      console.log('自動播放失敗')
+    })
+  }, Math.random() * 1000) // 隨機延遲 0-1 秒
 }
 
 onMounted(() => {
