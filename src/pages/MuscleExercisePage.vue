@@ -36,16 +36,24 @@
                         preload="metadata"
                         loop
                         muted
-                        autoPlay
                         playsinline
                         webkit-playsinline
                         @loadeddata="handleVideoLoaded"
+                        @loadstart="handleVideoLoadStart"
+                        @error="handleVideoError"
+                        @canplay="handleVideoCanPlay"
                       >
                         您的瀏覽器不支援影片播放
                       </video>
                       <div v-else class="video-placeholder">
                         <q-icon name="play_circle_outline" size="4rem" color="grey-5" />
                         <div class="text-caption text-grey-6">暫無影片</div>
+                      </div>
+                      <!-- 調試信息 -->
+                      <div v-if="exercise.video" class="debug-info text-caption text-grey-6">
+                        Video: {{ exercise.video }}<br />
+                        URL: {{ getVideoUrl(exercise.video) }}<br />
+                        Status: {{ videoStatus[getVideoUrl(exercise.video)] || 'loading...' }}
                       </div>
                     </div>
                   </div>
@@ -342,6 +350,7 @@ const highlightedMuscles = ref([])
 const gender = ref('男生')
 const showDetail = ref(false)
 const selectedExercise = ref(null)
+const videoStatus = ref({})
 
 // 定義背部肌群（需要顯示背面視圖的肌群）
 const backMuscles = [
@@ -613,12 +622,35 @@ const handleMuscleClick = (target) => {
 
 // 處理影片載入完成後播放
 const handleVideoLoaded = (event) => {
-  // 延遲一點時間再播放，避免同時播放多個影片
-  setTimeout(() => {
-    event.target.play().catch(() => {
-      console.log('自動播放失敗')
-    })
-  }, Math.random() * 1000) // 隨機延遲 0-1 秒
+  // 簡單記錄狀態，用影片 src 作為 key
+  const src = event.target.src
+  videoStatus.value[src] = '載入完成'
+  console.log('影片載入完成:', src)
+  console.log('影片載入完成:', event.target.src)
+}
+
+// 添加其他影片事件處理函數
+const handleVideoLoadStart = (event) => {
+  const src = event.target.src
+  videoStatus.value[src] = '開始載入'
+  console.log('影片開始載入:', src)
+}
+
+const handleVideoError = (event) => {
+  const src = event.target.src
+  videoStatus.value[src] = '載入錯誤'
+  console.error('影片載入錯誤:', {
+    error: event.target.error,
+    src: src,
+    networkState: event.target.networkState,
+    readyState: event.target.readyState,
+  })
+}
+
+const handleVideoCanPlay = (event) => {
+  const src = event.target.src
+  videoStatus.value[src] = '可以播放'
+  console.log('影片可以播放:', src)
 }
 
 onMounted(() => {
