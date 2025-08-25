@@ -3,7 +3,7 @@
     <div class="container fade-in-up">
       <div class="row q-col-gutter-lg">
         <!-- 左側動作卡片列表 -->
-        <div class="col-12 col-lg-8">
+        <div class="col-12 col-lg-9">
           <div v-if="loading" class="text-center q-pa-lg">
             <q-spinner-dots size="50px" color="primary" />
             <div class="q-mt-md">載入中...</div>
@@ -108,7 +108,7 @@
         </div>
 
         <!-- 右側肌肉圖 -->
-        <div class="col-12 col-lg-4">
+        <div class="col-12 col-lg-3">
           <div class="sticky-top">
             <q-card flat bordered class="muscle-map-card">
               <q-card-section>
@@ -746,9 +746,7 @@ watch(
 
 .video-container {
   height: 100%;
-  min-height: 300px;
   position: relative;
-  background: #f5f5f5;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -757,7 +755,6 @@ watch(
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #000;
 }
 
 .video-placeholder {
