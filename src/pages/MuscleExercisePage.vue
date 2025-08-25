@@ -39,41 +39,13 @@
                         autoplay
                         playsinline
                         webkit-playsinline
-                        crossorigin="anonymous"
                         :ref="(el) => setVideoRef(el, exercise._id)"
-                        @loadeddata="handleVideoLoaded"
-                        @loadstart="handleVideoLoadStart"
-                        @error="handleVideoError"
-                        @canplay="handleVideoCanPlay"
-                        @loadedmetadata="handleVideoLoadedMetadata"
-                        @abort="handleVideoAbort"
-                        @stalled="handleVideoStalled"
-                        @suspend="handleVideoSuspend"
                       >
                         您的瀏覽器不支援影片播放
                       </video>
                       <div v-else class="video-placeholder">
                         <q-icon name="play_circle_outline" size="4rem" color="grey-5" />
                         <div class="text-caption text-grey-6">暫無影片</div>
-                      </div>
-                      <!-- 調試信息 -->
-                      <div v-if="exercise.video" class="debug-info text-caption text-grey-6">
-                        Video: {{ exercise.video }}<br />
-                        URL: {{ getVideoUrl(exercise.video) }}<br />
-                        Status: {{ videoStatus[getVideoUrl(exercise.video)] || 'loading...' }}
-                      </div>
-
-                      <!-- 如果影片載入失敗，顯示替代內容 -->
-                      <div
-                        v-if="
-                          videoStatus[getVideoUrl(exercise.video)] === '載入錯誤' ||
-                          videoStatus[getVideoUrl(exercise.video)] === '載入停滯'
-                        "
-                        class="video-fallback text-center q-pa-md"
-                      >
-                        <q-icon name="videocam_off" size="2rem" color="grey-5" />
-                        <div class="text-caption text-grey-6">影片載入失敗</div>
-                        <q-btn size="sm" flat @click="retryVideo(exercise.video)">重試</q-btn>
                       </div>
                     </div>
                   </div>
@@ -370,7 +342,6 @@ const highlightedMuscles = ref([])
 const gender = ref('男生')
 const showDetail = ref(false)
 const selectedExercise = ref(null)
-const videoStatus = ref({})
 const videoRefs = ref(new Map())
 const observer = ref(null)
 
@@ -414,7 +385,7 @@ const setupVideoObserver = () => {
         if (entry.isIntersecting && entry.intersectionRatio > 0.3) {
           // 影片進入視窗時嘗試播放
           video.play().catch(() => {
-            console.log('自動播放被阻止，這在手機上是正常的')
+            // 自動播放被阻止，在手機上是正常的
           })
         } else {
           // 影片離開視窗時暫停（節省資源）
@@ -431,36 +402,16 @@ const setupVideoObserver = () => {
 
 // 獲取影片 URL
 const getVideoUrl = (videoPath) => {
-  if (!videoPath) {
-    console.log('影片路徑為空:', videoPath)
-    return ''
-  }
+  if (!videoPath) return ''
 
   // 如果已經是完整的 URL，直接返回
   if (videoPath.startsWith('http://') || videoPath.startsWith('https://')) {
-    console.log('使用完整 URL:', videoPath)
     return videoPath
   }
 
   // 如果是相對路徑，拼接基礎 URL
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
-  const fullUrl = `${baseUrl}/${videoPath.replace(/^\//, '')}`
-  console.log('拼接 URL:', { videoPath, baseUrl, fullUrl })
-
-  // 在這裡我們可以嘗試用 fetch 來測試 URL 是否可用
-  testVideoUrl(fullUrl)
-
-  return fullUrl
-}
-
-// 測試影片 URL 是否可用
-const testVideoUrl = async (url) => {
-  try {
-    const response = await fetch(url, { method: 'HEAD' })
-    console.log('影片 URL 測試結果:', { url, status: response.status, ok: response.ok })
-  } catch (error) {
-    console.error('影片 URL 測試失敗:', { url, error: error.message })
-  }
+  return `${baseUrl}/${videoPath.replace(/^\//, '')}`
 }
 
 // 顯示動作詳細資訊
@@ -694,70 +645,6 @@ const handleMuscleClick = (target) => {
     path: '/muscle-exercises',
     query: query,
   })
-}
-
-// 處理影片載入完成後播放
-const handleVideoLoaded = (event) => {
-  // 簡單記錄狀態，用影片 src 作為 key
-  const src = event.target.src
-  videoStatus.value[src] = '載入完成'
-  console.log('影片載入完成:', src)
-  console.log('影片載入完成:', event.target.src)
-}
-
-// 添加其他影片事件處理函數
-const handleVideoLoadStart = (event) => {
-  const src = event.target.src
-  videoStatus.value[src] = '開始載入'
-  console.log('影片開始載入:', src)
-}
-
-const handleVideoError = (event) => {
-  const src = event.target.src
-  videoStatus.value[src] = '載入錯誤'
-  console.error('影片載入錯誤:', {
-    error: event.target.error,
-    src: src,
-    networkState: event.target.networkState,
-    readyState: event.target.readyState,
-  })
-}
-
-const handleVideoCanPlay = (event) => {
-  const src = event.target.src
-  videoStatus.value[src] = '可以播放'
-  console.log('影片可以播放:', src)
-}
-
-const handleVideoLoadedMetadata = (event) => {
-  const src = event.target.src
-  videoStatus.value[src] = '元數據載入完成'
-  console.log('影片元數據載入完成:', src)
-
-  // 強制嘗試播放（針對手機 Safari）
-  setTimeout(() => {
-    event.target.play().catch((error) => {
-      console.log('自動播放失敗，這在手機上是正常的:', error.message)
-    })
-  }, 100)
-}
-
-const handleVideoAbort = (event) => {
-  const src = event.target.src
-  videoStatus.value[src] = '載入中止'
-  console.log('影片載入中止:', src)
-}
-
-const handleVideoStalled = (event) => {
-  const src = event.target.src
-  videoStatus.value[src] = '載入停滯'
-  console.log('影片載入停滯:', src)
-}
-
-const handleVideoSuspend = (event) => {
-  const src = event.target.src
-  videoStatus.value[src] = '載入暫停'
-  console.log('影片載入暫停:', src)
 }
 
 onMounted(() => {
