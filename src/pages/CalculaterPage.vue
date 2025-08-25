@@ -7,8 +7,11 @@
       </p>
 
       <div class="container full-height flex flex-center">
-        <div class="row q-col-gutter-lg items-center full-width" style="min-height: 80vh">
-          <div class="col-12 col-lg-6">
+        <div
+          class="row q-col-gutter-none q-col-gutter-lg-md items-center full-width"
+          style="min-height: 80vh"
+        >
+          <div class="col-12 col-lg-6 q-pa-none">
             <q-card class="my-card">
               <q-card-section class="q-pb-none">
                 <div class="text-h6">基礎代謝率 (BMR) 計算機</div>
@@ -271,5 +274,14 @@ const dietCards = computed(() => {
   color: #718096;
   line-height: 1.6;
   font-size: 1rem;
+}
+@media (min-width: 1024px) {
+  .q-col-gutter-lg-md {
+    margin: -12px;
+
+    > div {
+      padding-left: 24px;
+    }
+  }
 }
 </style>
