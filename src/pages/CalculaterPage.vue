@@ -79,7 +79,7 @@
               </q-card-section>
             </q-card>
           </div>
-          <div class="col-12 col-lg-6">
+          <div class="col-12 col-lg-6 q-mt-lg">
             <q-tabs v-model="tdeeTab" class="text-primary" align="left" dense>
               <q-tab name="normal" label="一般" />
               <q-tab name="diet" label="我想減肥" />
