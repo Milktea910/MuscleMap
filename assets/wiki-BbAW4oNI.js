@@ -1,0 +1,1 @@
+import{aV as c}from"./index-Bn42XH2Q.js";const{api:t,apiAuth:r}=c,x={getExercises(){return t.get("/exercise")},getExerciseById(e){return t.get(`/exercise/${e}`)},createExercise(e){return r.post("/exercise",e)},updateExercise(e,i){return r.patch(`/exercise/${e}`,i)},deleteExercise(e){return r.delete(`/exercise/${e}`)}};export{x as w};
