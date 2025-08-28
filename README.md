@@ -4,7 +4,6 @@
 
 > 智能健身訓練平台 - 結合人體肌肉地圖、專業動作指導與個人化課表規劃
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Vue 3](https://img.shields.io/badge/Vue-3.4.18-4FC08D.svg)](https://vuejs.org/)
 [![Quasar](https://img.shields.io/badge/Quasar-2.16.0-1976D2.svg)](https://quasar.dev/)
@@ -24,7 +23,7 @@ MuscleMap 是一個全方位的智能健身訓練平台，旨在為健身愛好�
 
 #### 📚 動作百科
 
-- **豐富動作庫**：收錄超過 500+ 種專業健身動作
+- **豐富動作庫**：收錄超過 200+ 種專業健身動作
 - **詳細動作指導**：包含動作說明、目標肌肉、使用器材
 - **多維度篩選**：支援按肌肉群、器材、難易度篩選
 - **智能搜尋**：快速查找所需動作
@@ -238,10 +237,6 @@ src/
 3. 提交您的更改 (`git commit -m 'Add some AmazingFeature'`)
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 開啟一個 Pull Request
-
-## 📄 授權協議
-
-本專案採用 [MIT License](LICENSE) 授權 - 詳見 LICENSE 檔案
 
 ## 📞 聯繫我們
 
